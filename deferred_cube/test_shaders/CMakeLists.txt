@@ -1,4 +1,3 @@
-add_custom_target(shader_compilation)
 include(CompileShader)
 
 set(shader_srcs
