@@ -2,7 +2,12 @@ cmake_minimum_required(VERSION 3.13)
 project(DeferredCube)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
-list(APPEND CMAKE_PREFIX_PATH "C:/Program Files/LunaGraphics/cmake")
+if(WIN32)
+  list(APPEND CMAKE_PREFIX_PATH "C:/Program Files/LunaGraphics/cmake")
+elseif(UNIX)
+  list(APPEND CMAKE_PREFIX_PATH "/usr/local/LunaGraphics/")
+endif()
+
 set(SHADER_DIR ${CMAKE_CURRENT_BINARY_DIR}/shaders)
 file(MAKE_DIRECTORY ${SHADER_DIR})
 
@@ -39,5 +44,6 @@ find_package(SDL2 REQUIRED)
 find_package(lunagfx REQUIRED)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+add_custom_target(shader_compilation)
 add_subdirectory(test_shaders)
 add_subdirectory(deferred_cube)
