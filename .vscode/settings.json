@@ -35,6 +35,8 @@
   ],
   "files.associations": {
     "vector": "cpp",
-    "xstring": "cpp"
+    "xstring": "cpp",
+    "thread": "cpp",
+    "chrono": "cpp"
   }
 }
