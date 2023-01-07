@@ -10,6 +10,7 @@ endif()
 
 set(SHADER_DIR ${CMAKE_CURRENT_BINARY_DIR}/shaders)
 file(MAKE_DIRECTORY ${SHADER_DIR})
+include(CompileShader)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -40,7 +41,11 @@ if(EXISTS ${conan_include_path})
   include(${conan_include_path})
 endif()
 
+find_package(shaderc REQUIRED)
+find_package(SDL2 REQUIRED)
 find_package(luna-gfx REQUIRED)
 
+add_custom_target(shader_compilation)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+add_subdirectory(shaders)
 add_subdirectory(scene_graph)

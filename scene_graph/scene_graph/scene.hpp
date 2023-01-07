@@ -7,7 +7,7 @@
 #include <string>
 #include <unordered_map>
 #include <functional>
-
+#include <optional>
 namespace luna {
 class Node;
 
@@ -30,6 +30,7 @@ public:
   inline auto set_transform(Transformation t) -> void {this->m_transform = t;}
   inline auto parent() const -> const std::size_t {return this->m_parent;}
   inline auto transform() const -> const Transformation& {return this->m_transform;}
+  inline auto transform() -> Transformation& {return this->m_transform;}
   inline auto type() const -> std::int32_t {return this->m_type;}
   inline auto data() const -> std::int32_t {return this->m_data;}
   inline auto idx() const -> std::size_t {return this->m_idx;}
@@ -53,14 +54,18 @@ class Scene {
 public:
   Scene() {this->m_nodes.push_back({0, 0, 0, 0});}
   ~Scene() = default;
-  auto traverse(std::function<void(const Node&)> visit_func) -> void;
+  auto traverse(std::function<void(const Node&)> visit_func = {}) -> void;
   auto add_node_type(std::string_view name) -> std::int32_t;
   auto add_data_type(std::string_view name) -> std::int32_t;
-  auto add_child(NodeInsertInfo insert_info, std::size_t parent_idx = 0) -> std::size_t;
-  auto remove(std::size_t idx) -> void;
+  auto add_child(std::string_view name, NodeInsertInfo insert_info, std::size_t parent_idx = 0) -> std::size_t;
+  auto get(std::string_view name) -> std::optional<std::reference_wrapper<Node>>;
+  auto get(std::size_t index) -> Node& {return this->m_nodes[index];}
+  auto remove(std::string_view name) -> void;
+  auto remove(std::size_t index) -> void;
   auto parent() const -> const Node& {return this->m_nodes[0];}
   auto print() -> void;
 private:
+  std::unordered_map<std::string, std::size_t> m_name_map;
   std::unordered_map<std::string, std::int32_t> m_data_map;
   std::unordered_map<std::string, std::int32_t> m_type_map;
   std::vector<Node> m_nodes;

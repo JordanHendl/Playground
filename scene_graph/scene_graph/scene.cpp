@@ -2,11 +2,12 @@
 #include <queue>
 #include <set>
 #include <iostream>
-
+#include <cassert>
+#include <utility>
 namespace luna {
 
 auto Node::local_transform() -> mat4 {
-  return luna::translate(mat4(1.0f), this->m_transform.position) * luna::scale(mat4(1.0f), this->m_transform.scale);
+  return luna::translate(mat4(1.0f), this->m_transform.position);// * luna::scale(mat4(1.0f), this->m_transform.scale);
 }
 
 auto Scene::add_node_type(std::string_view name) -> std::int32_t {
@@ -25,7 +26,7 @@ auto Scene::add_data_type(std::string_view name) -> std::int32_t {
   return tmp;
 }
 
-auto Scene::add_child(NodeInsertInfo insert_info, std::size_t parent_idx) -> std::size_t {
+auto Scene::add_child(std::string_view name, NodeInsertInfo insert_info, std::size_t parent_idx) -> std::size_t {
   auto idx = 0u;
   auto type_iter = this->m_type_map.find(insert_info.node_type);
   auto data_iter = this->m_data_map.find(insert_info.node_data);
@@ -38,6 +39,7 @@ auto Scene::add_child(NodeInsertInfo insert_info, std::size_t parent_idx) -> std
     if(node.m_type < 0) {
       node = Node(idx, parent_idx, type_iter->second, data);
       node.set_transform(insert_info.transform);
+      this->m_name_map.insert({std::string(name), idx});
       this->m_nodes[parent_idx].m_children.push_back(idx);
       return idx;
     }
@@ -45,9 +47,11 @@ auto Scene::add_child(NodeInsertInfo insert_info, std::size_t parent_idx) -> std
   }
 
   // We have no open slots, so we need to grow our vector.
+  idx = this->m_nodes.size();
   this->m_nodes.push_back(Node(idx, parent_idx, type_iter->second, data));
   this->m_nodes.back().set_transform(insert_info.transform);
   this->m_nodes[parent_idx].m_children.push_back(this->m_nodes.size() - 1);
+  this->m_name_map.insert({std::string(name), idx});
   return this->m_nodes.size() - 1;
 }
 
@@ -83,6 +87,22 @@ auto Scene::remove(std::size_t idx) -> void {
   }
 }
 
+auto Scene::remove(std::string_view name) -> void {
+  auto iter = this->m_name_map.find(std::string(name));
+  if(iter == this->m_name_map.end()) return;
+  auto idx = iter->second;
+  this->remove(idx);
+  this->m_name_map.erase(iter); 
+}
+
+auto Scene::get(std::string_view name) -> std::optional<std::reference_wrapper<Node>> {
+  auto iter = this->m_name_map.find(std::string(name));
+  if(iter != this->m_name_map.end()) {
+    return this->m_nodes[iter->second];
+  }
+  return {};
+}
+
 auto Scene::traverse(std::function<void(const Node&)> visit_func) -> void {
   constexpr auto cRootNode = 0;
   auto queue = std::queue<std::size_t>();
@@ -99,7 +119,8 @@ auto Scene::traverse(std::function<void(const Node&)> visit_func) -> void {
     const auto& t = node.transform();
     for(auto child : node.m_children) {
       if(visited.find(child) == visited.end()) {
-        this->m_nodes[child].m_transform.transform = node.m_transform.transform * node.local_transform();
+        auto out_transform = node.m_transform.transform * this->m_nodes[child].local_transform();
+        this->m_nodes[child].m_transform.transform = out_transform;
         queue.push(child);
         
       }
@@ -107,7 +128,7 @@ auto Scene::traverse(std::function<void(const Node&)> visit_func) -> void {
     
     // Mark that we've visited this node, and call the callback function.
     visited.insert(queue.front());
-    visit_func(node);
+    if(node.idx() != 0 && visit_func) visit_func(node); 
     queue.pop();
   }
 }
