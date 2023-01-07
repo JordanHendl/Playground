@@ -1,7 +1,8 @@
 Using https://github.com/JordanHendl/luna-gfx
 
 render test: 
-![](https://i.imgur.com/jRhKeJ3.mp4)
+
+[Link to video](https://i.imgur.com/jRhKeJ3.mp4)
 
 regular test output: 
 
