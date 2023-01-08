@@ -1,0 +1,51 @@
+cmake_minimum_required(VERSION 3.13)
+project(DeferredCube)
+
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
+if(WIN32)
+  list(APPEND CMAKE_PREFIX_PATH "C:/Program Files/Luna/cmake")
+elseif(UNIX)
+  list(APPEND CMAKE_PREFIX_PATH "/usr/local/Luna/")
+endif()
+
+set(SHADER_DIR ${CMAKE_CURRENT_BINARY_DIR}/shaders)
+file(MAKE_DIRECTORY ${SHADER_DIR})
+include(CompileShader)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+set(EXPORT_BIN_DIR bin)
+set(EXPORT_INCLUDE_DIR include)
+set(EXPORT_LIB_DIR lib)
+set(EXPORT_DOC_DIR doc)
+
+if(WIN32)
+  add_compile_options(/W2 /MD)
+  set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
+  foreach( OUTPUTCONFIG ${CMAKE_CONFIGURATION_TYPES})
+      string( TOUPPER ${OUTPUTCONFIG} OUTPUTCONFIG)
+      set( CMAKE_RUNTIME_OUTPUT_DIRECTORY_${OUTPUTCONFIG} ${CMAKE_BINARY_DIR}/${EXPORT_LIB_DIR})
+      set( CMAKE_LIBRARY_OUTPUT_DIRECTORY_${OUTPUTCONFIG} ${CMAKE_BINARY_DIR}/${EXPORT_LIB_DIR})
+      set( CMAKE_ARCHIVE_OUTPUT_DIRECTORY_${OUTPUTCONFIG} ${CMAKE_BINARY_DIR}/${EXPORT_LIB_DIR})
+  endforeach( OUTPUTCONFIG CMAKE_CONFIGURATION_TYPES)
+endif()
+
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${EXPORT_LIB_DIR})
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${EXPORT_LIB_DIR})
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${EXPORT_BIN_DIR})
+set(DOCUMENTATION_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${EXPORT_DOC_DIR})
+
+set(conan_include_path ${CMAKE_BINARY_DIR}/conan_paths.cmake)
+if(EXISTS ${conan_include_path})
+  include(${conan_include_path})
+endif()
+
+find_package(shaderc REQUIRED)
+find_package(SDL2 REQUIRED)
+find_package(luna-gfx REQUIRED)
+
+add_custom_target(shader_compilation)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+add_subdirectory(shaders)
+add_subdirectory(scene_graph)

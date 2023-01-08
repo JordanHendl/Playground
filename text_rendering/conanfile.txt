@@ -1,0 +1,7 @@
+[requires]
+sdl/2.26.0
+shaderc/2021.1
+
+[generators]    
+cmake_find_package 
+cmake_paths
