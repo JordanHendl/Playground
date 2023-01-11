@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.13)
-project(TextRendering)
+project(ModelLoading)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 if(WIN32)
@@ -44,8 +44,8 @@ endif()
 find_package(shaderc REQUIRED)
 find_package(SDL2 REQUIRED)
 find_package(luna-gfx REQUIRED)
-
+find_package(assimp REQUIRED)
 add_custom_target(shader_compilation)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 add_subdirectory(shaders)
-add_subdirectory(text_rendering)
+add_subdirectory(model_loading)
