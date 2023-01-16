@@ -18,7 +18,6 @@ luna::gfx::Image img;
 
 constexpr auto cGPU = 0;
 constexpr auto cClearColors = std::array<float, 4>{0.0f, 0.2f, 0.2f, 1.0f};
-constexpr auto cBMPImageHeaderOffset = 54;
 bool running = true;
 
 namespace luna {

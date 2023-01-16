@@ -1,4 +1,5 @@
 #include "model_loading/model.hpp"
+#include "model_loading/data_manager.hpp"
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
@@ -11,21 +12,43 @@
 namespace luna {
 constexpr auto cGPU = 0;
 
-auto convert(aiTextureType type) {
+auto convert(aiTextureType type) -> TextureType {
   switch(type) {
     case aiTextureType_DIFFUSE : return TextureType::Diffuse;
     case aiTextureType_AMBIENT : return TextureType::Ambient;
     case aiTextureType_SPECULAR : return TextureType::Specular;
     case aiTextureType_HEIGHT : return TextureType::Height;
+    case aiTextureType_BASE_COLOR : return TextureType::BaseColor;
     default: return TextureType::Unknown;
   }
 }
+
+auto clean_up_path(std::string in) -> std::string {
+    // Remove extension.
+    auto p = in.find_last_of(".");
+    auto no_extension = in.substr(0, p);
+
+    // Get base path
+    p = no_extension.find_last_of("/\\");
+    return no_extension.substr(p + 1, no_extension.size());
+}
+
 template<typename some_map>
 auto add_materials(aiMaterial* mat, aiTextureType type, some_map& map) -> void {
   for(auto idx = 0u; idx < mat->GetTextureCount(type); ++idx) {
     auto str = aiString();
     mat->GetTexture(type, idx, &str);
-    std::cout << str.C_Str() << std::endl;
+
+    auto item = clean_up_path(std::string(str.C_Str()));
+
+    auto ptr = luna::db::image(item);
+    if(ptr) {
+      auto t = convert(type);
+      auto iter = map.find(t);
+      if(!map.empty())
+        assert(iter != map.end());
+      map[t] = ptr;
+    }
   }
 }
 
@@ -110,9 +133,9 @@ inline auto process(const aiNode* root, const aiScene* scene) -> std::vector<Mes
 Model::Model() {}
 Model::~Model() {}
 
-auto load_model_file(std::string_view filename) -> ModelLoadInfo {
+auto load_model_file(std::string_view filename) -> std::shared_ptr<ModelInfo> {
 
-  auto info = ModelLoadInfo();
+  auto info = std::shared_ptr<ModelInfo>(new ModelInfo());
   constexpr auto flags = aiProcess_Triangulate | aiProcess_GenSmoothNormals |
                          aiProcess_FlipUVs | aiProcess_CalcTangentSpace;
 
@@ -121,8 +144,8 @@ auto load_model_file(std::string_view filename) -> ModelLoadInfo {
   assert(scene != nullptr);
   assert(!(scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE));
   assert(scene->mRootNode != nullptr);
-  info.model.m_name = scene->mRootNode->mName.C_Str();
-  info.model.m_meshes = process(scene->mRootNode, scene);
+  info->model.m_name = scene->mRootNode->mName.C_Str();
+  info->model.m_meshes = process(scene->mRootNode, scene);
   return info;
 }
 

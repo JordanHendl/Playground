@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <cassert>
 #include <unordered_map>
+#include <memory>
 
 namespace luna {
 constexpr auto cMaxBones = 4u;
@@ -20,12 +21,13 @@ struct Vertex {
 };
 
 struct AnimationInfo {};
-struct ModelLoadInfo;
-auto load_model_file(std::string_view filename) -> ModelLoadInfo;
+struct ModelInfo;
+auto load_model_file(std::string_view filename) -> std::shared_ptr<ModelInfo>;
 
 enum class TextureType {
   Unknown,
   Ambient,
+  BaseColor,
   Diffuse,
   Specular,
   Normal,
@@ -43,12 +45,12 @@ struct Mesh {
   auto operator=(Mesh&& mv) -> Mesh& = default;
 
   std::string name;
-  std::unordered_map<TextureType, gfx::ImageView> textures;
+  std::unordered_map<TextureType, std::shared_ptr<gfx::Image>> textures;
   gfx::Vector<Vertex> vertices;
   gfx::Vector<std::uint32_t> indices;
 
   private:
-  friend auto load_model_file(std::string_view filename) -> ModelLoadInfo;
+  friend auto load_model_file(std::string_view filename) -> std::shared_ptr<ModelInfo>;
 };
 
 class Model {
@@ -61,20 +63,19 @@ public:
   Model(Model&& mv) = default;
   ~Model();
 
+  auto meshes() const -> const std::vector<Mesh>& {return this->m_meshes;};
   inline auto name() const -> std::string_view {return this->m_name;}
   auto begin() {return this->m_meshes.begin();}
   auto end() {return this->m_meshes.end();}
   auto operator=(Model&& mv) -> Model& = default;
 private:
-  friend auto load_model_file(std::string_view filename) -> ModelLoadInfo;
+  friend auto load_model_file(std::string_view filename) -> std::shared_ptr<ModelInfo>;
   std::string m_name;
   std::vector<Mesh> m_meshes;
 };
 
-struct ModelLoadInfo {
+struct ModelInfo {
   Model model;
   AnimationInfo animation;
 };
-
-
 }

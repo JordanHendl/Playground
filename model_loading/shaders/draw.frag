@@ -1,15 +1,21 @@
 #version 450 core
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_GOOGLE_include_directive    : enable
-layout(location = 0) in vec2 frag_coord;
+layout(location = 0) in vec3 frag_normal;
+layout(location = 1) in vec2 frag_coord;
 
 layout(location = 0) out vec4 frag_color;
 
-layout(binding = 11) uniform sampler2D font;
+layout(binding = 11) uniform sampler2D frag_texture;
 
 void main()
 {
-  vec4 sampled_color = texture(font, frag_coord);
-  if(sampled_color.a < 0.1f) discard;
-  frag_color = vec4(vec3(sampled_color.r), 1.0f);
+  vec3 dir_light = vec3(0.40, -0.50, 0.10);
+  vec4 sampled_color = texture(frag_texture, frag_coord);
+  
+  vec3 ambient = vec3(0.4118, 0.4118, 0.4118);
+  vec3 diffuse = vec3(dot(frag_normal, dir_light));
+
+  vec3 final_color = sampled_color.xyz * (ambient + diffuse);
+  frag_color = vec4(final_color.xyz, 1.0f);
 } 

@@ -1,20 +1,39 @@
 #include "luna-gfx/gfx.hpp"
 #include "luna-gfx/ext/ext.hpp"
+#include "model_loading/data_manager.hpp"
 #include <array>
 #include <vector>
 #include <iostream>
 #include <chrono>
+#include <cmath>
+#include <cassert>
 
-#include "font.hpp"
 #include "draw_vert.hpp"
 #include "draw_frag.hpp"
 
-luna::gfx::Font font;
+struct Vertex {
+  luna::vec3 position;
+  luna::vec3 normal;
+  luna::vec2 tex_coord;
+};
+
+
+struct Transformations {
+  luna::mat4 mat;
+};
+
+static_assert(sizeof(Vertex) == (sizeof(float) * 8));
+static_assert(sizeof(Transformations) == (sizeof(luna::mat4)));
+
 luna::gfx::Window window;
 luna::gfx::Renderer renderer;
 luna::gfx::FramebufferCreator framebuffers;
-luna::gfx::BindGroup bind_group;
-luna::gfx::Image img;
+luna::gfx::Vector<Transformations> gpu_transforms;
+luna::gfx::PerspectiveCamera camera;
+luna::gfx::EventRegister event_handler;
+std::shared_ptr<luna::ModelInfo> model;
+
+std::vector<luna::gfx::BindGroup> bind_groups;
 
 constexpr auto cGPU = 0;
 constexpr auto cClearColors = std::array<float, 4>{0.0f, 0.2f, 0.2f, 1.0f};
@@ -22,68 +41,114 @@ constexpr auto cBMPImageHeaderOffset = 54;
 bool running = true;
 
 namespace luna {
-auto init_graphics_pipeline() -> void {
-  //TODO Run on linux and choose a good default there too :)
-  auto vert_shader = std::vector<uint32_t>(draw_vert, std::end(draw_vert));
-  auto frag_shader = std::vector<uint32_t>(draw_frag, std::end(draw_frag));
-  font = std::move(luna::gfx::Font(file_path));
-  
-  auto info = gfx::RendererInfo();
-  framebuffers = gfx::FramebufferCreator(cGPU, window.width(), window.height(), {{"Depth", gfx::ImageFormat::Depth}});
-  info.render_pass_info = {cGPU, window.width(), window.height(), 
-                            {{"Default", //Subpass
-                                // Attachments
-                                {{"WindowOutput", window.image_views()}, 
-                                {"DepthAttachment", framebuffers.views()["Depth"], {1.0f, 1.0f, 1.0f, 1.0f}}}
-                             }}};
-
-  info.pipeline_infos["DefaultPipeline"] = {cGPU, {{"vertex", luna::gfx::ShaderType::Vertex, vert_shader}, {"fragment", luna::gfx::ShaderType::Fragment, frag_shader}}};
-  info.pipeline_infos["DefaultPipeline"].details.depth_test = true;
-  renderer = std::move(gfx::Renderer(info));
-
-  bind_group = renderer.pipeline("DefaultPipeline").create_bind_group();
-  bind_group.set(font.atlas(), "font");
-}
-
-auto draw_loop() -> void {
-  auto string = std::string("Hello world!");
-  auto event_handler = gfx::EventRegister();
-  auto event_cb = [&string](const gfx::Event& event) {
-    constexpr auto cOffsetAmt = 0.01f;
+auto init_event_handlers() -> void {
+    static auto camera_angles = vec3{0.0f, 90.0f, 0.0f};
+    auto event_cb = [&](const gfx::Event& event) {
+    constexpr auto camera_speed = 0.1f;
+    constexpr auto rotate_speed = 1.0f;
     if(event.type() == gfx::Event::Type::WindowExit) running = false;
-    else if(event.type() == gfx::Event::Type::Text) {
-      string += std::string(event.string());
-    } else if(event.type() == gfx::Event::Type::KeyDown)
-      switch(event.key()) {
-        case gfx::Key::Backspace: 
-          if(!string.empty())string.pop_back(); break;
+
+    if(event.type() == gfx::Event::Type::KeyDown)
+    switch(event.key()) {
+      case gfx::Key::W : camera.translate(camera.front() * camera_speed); break;
+      case gfx::Key::S : camera.translate(-(camera.front() * camera_speed)); break;
+      case gfx::Key::D : camera.translate(camera.right() * camera_speed); break;
+      case gfx::Key::A : camera.translate(-(camera.right() * camera_speed)); break;
+      case gfx::Key::Space : camera.translate(-(camera.up() * camera_speed)); break;
+      case gfx::Key::LShift : camera.translate((camera.up() * camera_speed)); break;
+
+      case gfx::Key::Left : camera_angles.y += rotate_speed; camera.rotate_euler(camera_angles); break;
+      case gfx::Key::Right : camera_angles.y -= rotate_speed; camera.rotate_euler(camera_angles); break;
+      case gfx::Key::Up : camera_angles.x -= rotate_speed; camera.rotate_euler(camera_angles); break;
+      case gfx::Key::Down : camera_angles.x += rotate_speed; camera.rotate_euler(camera_angles); break;
       default: break;
     };
   };
-
   event_handler.add(event_cb);
-  luna::gfx::enable_text_input();
+  camera.rotate_euler(camera_angles);
+}
+
+auto init_graphics_pipeline() -> void {
+  auto vert_shader = std::vector<uint32_t>(draw_vert, std::end(draw_vert));
+  auto frag_shader = std::vector<uint32_t>(draw_frag, std::end(draw_frag));
+
+  auto info = gfx::RendererInfo();
+  framebuffers = gfx::FramebufferCreator(cGPU, window.width(), window.height(), {{"Depth", gfx::ImageFormat::Depth}});
+  info.render_pass_info = {cGPU, window.width(), window.height(), 
+  {
+    {"Default", 
+      {
+        {"WindowOutput", window.image_views()}, 
+        {"DepthAttachment", framebuffers.views()["Depth"], {1.0f, 1.0f, 1.0f, 1.0f}}
+      }
+    }
+  }
+  };
+
+  info.pipeline_infos["DefaultPipeline"] = {cGPU, 
+    {
+      {"vertex", luna::gfx::ShaderType::Vertex, vert_shader}, 
+      {"fragment", luna::gfx::ShaderType::Fragment, frag_shader}
+    }
+  };
+
+  info.pipeline_infos["DefaultPipeline"].details.depth_test = true;
+  renderer = std::move(gfx::Renderer(info));
+
+  model = luna::db::model("cool_model");
+  assert(model);
+  gpu_transforms = gfx::Vector<Transformations>(cGPU, 1);
+  bind_groups.resize(model->model.meshes().size());
+  auto i = 0u;
+  for(auto& mesh : model->model) {
+    auto& bg = bind_groups[i++];
+    bg = renderer.pipeline("DefaultPipeline").create_bind_group();
+    bg.set(gpu_transforms, "transform");
+    bg.set(*mesh.textures.begin()->second, "frag_texture");
+  }
+}
+
+auto draw_loop() -> void {
+  init_event_handlers();
+  constexpr auto cNearPlane = 0.01f;
+  constexpr auto cFarPlane = 1000.f;
+  constexpr auto cFOV = 90.f;
+  auto ratio = static_cast<float>(window.width()) / static_cast<float>(window.height());
+  auto projection = luna::perspective(luna::to_radians(90.f), 1280.f / 1024.f, 0.1f, 1000.f);
   while(running) {
+    auto start_time = std::chrono::system_clock::now();
     auto& cmd = renderer.next();
-    auto vertices = font.vertices(string);
+
+    {
+      auto container = gpu_transforms.get_mapped_container();
+      auto idx = 0;
+      for(auto& transform : container) {
+        auto view = camera.info().view_matrix;
+        auto vp = projection * view;
+        transform.mat = vp;
+      }
+    }
+    gpu_transforms.flush(); 
+    // Combo next gpu action to the cmd list.
     window.combo_into(cmd);
     window.acquire();
     
+    // Draw some stuff...
     cmd.begin();
     cmd.start_draw(renderer.pass(), window.current_frame());
-    cmd.viewport({static_cast<float>(window.width()), static_cast<float>(window.height())});
-    cmd.bind(bind_group);
-
-    if(vertices.size() != 0) {
-      cmd.draw(vertices);
+    cmd.viewport({});
+    auto i = 0u;
+    for(auto& mesh : model->model) {
+      auto& bg = bind_groups[i++];
+      cmd.bind(bg);
+      cmd.draw(mesh.vertices, mesh.indices);
     }
-
     cmd.end_draw();
     cmd.end();
+
     cmd.combo_into(window);
     auto fence = cmd.submit();
     window.present();
-    fence.wait();
     luna::gfx::poll_events();
   }
   
@@ -91,7 +156,7 @@ auto draw_loop() -> void {
 }
 }
 
-auto render_test() -> void {
+auto test_rendering() -> void {
   auto info = luna::gfx::WindowInfo();
   info.resizable = true;
   info.resize_callback = {[](){luna::init_graphics_pipeline();}};
