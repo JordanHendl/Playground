@@ -20,9 +20,9 @@ struct Vertex {
   float bone_weights[cMaxBones];
 };
 
-struct AnimationInfo {};
-struct ModelInfo;
-auto load_model_file(std::string_view filename) -> std::shared_ptr<ModelInfo>;
+struct Animation {};
+auto load_model_file(std::string_view filename) -> std::shared_ptr<Model>;
+auto load_animation_file(std::string_view filename) -> std::shared_ptr<Animation>;
 
 enum class TextureType {
   Unknown,
@@ -50,7 +50,7 @@ struct Mesh {
   gfx::Vector<std::uint32_t> indices;
 
   private:
-  friend auto load_model_file(std::string_view filename) -> std::shared_ptr<ModelInfo>;
+  friend auto load_model_file(std::string_view filename) -> std::shared_ptr<Model>;
 };
 
 class Model {
@@ -69,13 +69,8 @@ public:
   auto end() {return this->m_meshes.end();}
   auto operator=(Model&& mv) -> Model& = default;
 private:
-  friend auto load_model_file(std::string_view filename) -> std::shared_ptr<ModelInfo>;
+  friend auto load_model_file(std::string_view filename) -> std::shared_ptr<Model>;
   std::string m_name;
   std::vector<Mesh> m_meshes;
-};
-
-struct ModelInfo {
-  Model model;
-  AnimationInfo animation;
 };
 }

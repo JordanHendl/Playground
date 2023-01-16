@@ -31,7 +31,7 @@ luna::gfx::FramebufferCreator framebuffers;
 luna::gfx::Vector<Transformations> gpu_transforms;
 luna::gfx::PerspectiveCamera camera;
 luna::gfx::EventRegister event_handler;
-std::shared_ptr<luna::ModelInfo> model;
+std::shared_ptr<luna::Model> model;
 
 std::vector<luna::gfx::BindGroup> bind_groups;
 
@@ -98,9 +98,9 @@ auto init_graphics_pipeline() -> void {
   model = luna::db::model("cool_model");
   assert(model);
   gpu_transforms = gfx::Vector<Transformations>(cGPU, 1);
-  bind_groups.resize(model->model.meshes().size());
+  bind_groups.resize(model->meshes().size());
   auto i = 0u;
-  for(auto& mesh : model->model) {
+  for(auto& mesh : *model) {
     auto& bg = bind_groups[i++];
     bg = renderer.pipeline("DefaultPipeline").create_bind_group();
     bg.set(gpu_transforms, "transform");
@@ -138,7 +138,7 @@ auto draw_loop() -> void {
     cmd.start_draw(renderer.pass(), window.current_frame());
     cmd.viewport({});
     auto i = 0u;
-    for(auto& mesh : model->model) {
+    for(auto& mesh : *model) {
       auto& bg = bind_groups[i++];
       cmd.bind(bg);
       cmd.draw(mesh.vertices, mesh.indices);

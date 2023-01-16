@@ -133,9 +133,9 @@ inline auto process(const aiNode* root, const aiScene* scene) -> std::vector<Mes
 Model::Model() {}
 Model::~Model() {}
 
-auto load_model_file(std::string_view filename) -> std::shared_ptr<ModelInfo> {
+auto load_model_file(std::string_view filename) -> std::shared_ptr<Model> {
 
-  auto info = std::shared_ptr<ModelInfo>(new ModelInfo());
+  auto model = std::shared_ptr<Model>(new Model());
   constexpr auto flags = aiProcess_Triangulate | aiProcess_GenSmoothNormals |
                          aiProcess_FlipUVs | aiProcess_CalcTangentSpace;
 
@@ -144,9 +144,9 @@ auto load_model_file(std::string_view filename) -> std::shared_ptr<ModelInfo> {
   assert(scene != nullptr);
   assert(!(scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE));
   assert(scene->mRootNode != nullptr);
-  info->model.m_name = scene->mRootNode->mName.C_Str();
-  info->model.m_meshes = process(scene->mRootNode, scene);
-  return info;
+  model->m_name = scene->mRootNode->mName.C_Str();
+  model->m_meshes = process(scene->mRootNode, scene);
+  return model;
 }
 
 auto add_texture_path(std::string_view name, std::string_view path) -> void {

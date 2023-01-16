@@ -17,7 +17,7 @@ struct ItemInfo {
 };
 struct DataManagerData {
   std::unordered_map<std::string, ItemInfo<gfx::Image>> images;
-  std::unordered_map<std::string, ItemInfo<ModelInfo>> models;
+  std::unordered_map<std::string, ItemInfo<Model>> models;
   std::shared_ptr<gfx::Image> default_image;
 
   DataManagerData() {
@@ -77,7 +77,7 @@ auto image(std::string_view name) -> std::shared_ptr<gfx::Image> {
   return res.default_image;
 }
 
-auto model(std::string_view name) -> std::shared_ptr<ModelInfo> {
+auto model(std::string_view name) -> std::shared_ptr<Model> {
   auto& res = db_data();
   auto iter = res.models.find(std::string(name.data()));
   if(iter != res.models.end()) {
