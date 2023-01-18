@@ -89,20 +89,24 @@ inline auto process(const aiMesh* mesh, const aiScene* scene) -> Mesh {
   add_materials(material, aiTextureType_OPACITY, out.textures);
   add_materials(material, aiTextureType_BASE_COLOR, out.textures);
 
-// TODO: Bone code. This needs to happen, but I'd like to fill out animation data structure separately as well while doing this.
-// Decoupling animations <---> models is pretty important imo. And until the day comes when I end up writing a custom exporter from Blender/Maya for models/animations,
-// this will have to do.
-
-//  auto boneidx = 0u;
-//  auto bone_map = std::map<std::string, std::size_t>();
-//  for(auto idx = 0u; idx < mesh->mNumBones; ++idx) {
-//    auto bone_name = std::string(mesh->mBones[idx]->mName.C_Str());
-//
-//    auto iter = bone_map.find(bone_name);
-//    if(iter == bone_map.end()) {
-//      iter = bone_map.insert({bone_name, boneidx++}).first;
-//    }
-//  }
+  // Bone processing. Applying bone values to vertices. 
+  for(auto idx = 0u; idx < mesh->mNumBones; ++idx) {
+    auto* bone = mesh->mBones[idx];
+    auto bone_name = std::string(bone->mName.C_Str());
+    for(auto idx2 = 0u; idx2 < bone->mNumWeights; ++idx2) {
+      auto& weight = bone->mWeights[idx2];
+      auto vertex_id = weight.mVertexId;
+      auto& vertex = vertices[vertex_id];
+      
+      for(auto b = 0u; b < cMaxBones; ++b) {
+        if(vertex.bone_weights[b] == 0.0f) {
+          vertex.bone_weights[b] = weight.mWeight;
+          vertex.bone_ids[b] = idx;
+          break;
+        }
+      }
+    }
+  }
 
   // Create and copy data to GPU.
   out.name = mesh->mName.C_Str();
@@ -148,11 +152,4 @@ auto load_model_file(std::string_view filename) -> std::shared_ptr<Model> {
   model->m_meshes = process(scene->mRootNode, scene);
   return model;
 }
-
-auto add_texture_path(std::string_view name, std::string_view path) -> void {
-}
-
-auto remove_texture_path(std::string_view name) -> void {
-}
-
 }
