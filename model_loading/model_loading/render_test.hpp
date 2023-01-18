@@ -92,7 +92,10 @@ auto init_graphics_pipeline() -> void {
     }
   };
 
+  // Extra parameters.
   info.pipeline_infos["DefaultPipeline"].details.depth_test = true;
+  info.pipeline_infos["DefaultPipeline"].details.cull_mode = gfx::CullMode::BackFace;
+  info.pipeline_infos["DefaultPipeline"].details.winding = gfx::FrontFaceType::CounterClockwise;
   renderer = std::move(gfx::Renderer(info));
 
   model = luna::db::model("cool_model");
